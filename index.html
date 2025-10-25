@@ -1,0 +1,680 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ShaderPad - Real-time GLSL Shader Playground</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', monospace;
+            background: #1e1e1e;
+            color: #d4d4d4;
+            overflow: hidden;
+            display: flex;
+            flex-direction: column;
+            height: 100vh;
+            margin: 0;
+            padding: 0;
+        }
+        
+        .header {
+            background: #252526;
+            padding: 15px 20px;
+            display: flex;
+            align-items: center;
+            gap: 15px;
+            border-bottom: 1px solid #333;
+            flex-shrink: 0;
+        }
+        
+        .header-logo {
+            font-size: 24px;
+        }
+        
+        .header-title {
+            font-size: 24px;
+            font-weight: 700;
+            color: #cccccc;
+            letter-spacing: -0.5px;
+        }
+        
+        .header-subtitle {
+            font-size: 12px;
+            color: #858585;
+            font-weight: 400;
+            margin-left: 5px;
+        }
+        
+        .header-spacer {
+            flex: 1;
+        }
+        
+        .header-info {
+            font-size: 11px;
+            color: #858585;
+            display: flex;
+            align-items: center;
+            gap: 5px;
+        }
+        
+        .container {
+            display: flex;
+            flex: 1;
+            overflow: hidden;
+            min-height: 0;
+        }
+        
+        .editor-panel {
+            width: 50%;
+            display: flex;
+            flex-direction: column;
+            border-right: 2px solid #333;
+            min-height: 0;
+            overflow: hidden;
+        }
+        
+        .canvas-panel {
+            width: 50%;
+            display: flex;
+            flex-direction: column;
+            background: #000;
+            min-height: 0;
+            overflow: hidden;
+        }
+        
+        .toolbar {
+            background: #252526;
+            padding: 12px 15px;
+            border-bottom: 1px solid #333;
+            display: flex;
+            gap: 10px;
+            align-items: center;
+            flex-shrink: 0;
+        }
+        
+        .toolbar h2 {
+            font-size: 14px;
+            font-weight: 600;
+            flex: 1;
+            color: #cccccc;
+        }
+        
+        button {
+            background: #0e639c;
+            color: white;
+            border: none;
+            padding: 6px 12px;
+            border-radius: 3px;
+            cursor: pointer;
+            font-size: 12px;
+            font-family: inherit;
+            transition: background 0.2s;
+        }
+        
+        button:hover {
+            background: #1177bb;
+        }
+        
+        button.secondary {
+            background: #3c3c3c;
+        }
+        
+        button.secondary:hover {
+            background: #505050;
+        }
+        
+        #shaderCode {
+            flex: 1;
+            background: #1e1e1e;
+            color: #d4d4d4;
+            border: none;
+            padding: 15px;
+            font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', monospace;
+            font-size: 13px;
+            line-height: 1.5;
+            resize: none;
+            outline: none;
+            tab-size: 4;
+        }
+        
+        #shaderCode::selection {
+            background: #264f78;
+        }
+        
+        .error-display {
+            background: #5a1d1d;
+            border-top: 2px solid #f48771;
+            padding: 10px 15px;
+            font-size: 12px;
+            max-height: 150px;
+            overflow-y: auto;
+            display: none;
+            flex-shrink: 0;
+        }
+        
+        .error-display.show {
+            display: block;
+        }
+        
+        .error-display pre {
+            color: #f48771;
+            white-space: pre-wrap;
+            margin: 0;
+        }
+        
+        canvas {
+            width: 100%;
+            height: 100%;
+            display: block;
+        }
+        
+        .canvas-wrapper {
+            flex: 1;
+            min-height: 0;
+            overflow: hidden;
+            position: relative;
+        }
+        
+        .info {
+            background: #252526;
+            padding: 10px 15px;
+            font-size: 11px;
+            color: #858585;
+            border-top: 1px solid #333;
+            flex-shrink: 0;
+        }
+        
+        .info-grid {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 8px;
+        }
+        
+        .info-item {
+            display: flex;
+            justify-content: space-between;
+        }
+        
+        .info-label {
+            color: #858585;
+        }
+        
+        .info-value {
+            color: #4ec9b0;
+        }
+        
+        select {
+            background: #3c3c3c;
+            color: #cccccc;
+            border: 1px solid #555;
+            padding: 6px 10px;
+            border-radius: 3px;
+            font-size: 12px;
+            cursor: pointer;
+        }
+        
+        select:hover {
+            background: #505050;
+        }
+    </style>
+</head>
+<body>
+    <header class="header">
+        <div class="header-logo">🎨</div>
+        <div class="header-title">
+            ShaderPad
+            <span class="header-subtitle">Real-time GLSL Shader Playground</span>
+        </div>
+        <div class="header-spacer"></div>
+        <div class="header-info">
+            <span>WebGL Powered</span>
+        </div>
+    </header>
+    
+    <div class="container">
+        <div class="editor-panel">
+            <div class="toolbar">
+                <h2>Fragment Shader</h2>
+                <select id="exampleSelect">
+                    <option value="">Load Example...</option>
+                    <option value="wave">Wave Pattern</option>
+                    <option value="plasma">Plasma</option>
+                    <option value="mandelbrot">Mandelbrot</option>
+                    <option value="tunnel">Tunnel</option>
+                </select>
+                <button id="runBtn">Run (Ctrl+Enter)</button>
+                <button id="clearBtn" class="secondary">Clear</button>
+            </div>
+            <textarea id="shaderCode" spellcheck="false"></textarea>
+            <div id="errorDisplay" class="error-display">
+                <pre id="errorText"></pre>
+            </div>
+        </div>
+        
+        <div class="canvas-panel">
+            <div class="toolbar">
+                <h2>Output</h2>
+                <button id="pauseBtn" class="secondary">Pause</button>
+                <button id="resetBtn" class="secondary">Reset Time</button>
+            </div>
+            <div class="canvas-wrapper">
+                <canvas id="canvas"></canvas>
+            </div>
+            <div class="info">
+                <div class="info-grid">
+                    <div class="info-item">
+                        <span class="info-label">Time:</span>
+                        <span class="info-value" id="timeDisplay">0.00s</span>
+                    </div>
+                    <div class="info-item">
+                        <span class="info-label">FPS:</span>
+                        <span class="info-value" id="fpsDisplay">60</span>
+                    </div>
+                    <div class="info-item">
+                        <span class="info-label">Resolution:</span>
+                        <span class="info-value" id="resDisplay">0x0</span>
+                    </div>
+                    <div class="info-item">
+                        <span class="info-label">Mouse:</span>
+                        <span class="info-value" id="mouseDisplay">0, 0</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const canvas = document.getElementById('canvas');
+        const gl = canvas.getContext('webgl') || canvas.getContext('experimental-webgl');
+        const shaderCodeEl = document.getElementById('shaderCode');
+        const errorDisplayEl = document.getElementById('errorDisplay');
+        const errorTextEl = document.getElementById('errorText');
+        const runBtn = document.getElementById('runBtn');
+        const clearBtn = document.getElementById('clearBtn');
+        const pauseBtn = document.getElementById('pauseBtn');
+        const resetBtn = document.getElementById('resetBtn');
+        const exampleSelect = document.getElementById('exampleSelect');
+        
+        const timeDisplay = document.getElementById('timeDisplay');
+        const fpsDisplay = document.getElementById('fpsDisplay');
+        const resDisplay = document.getElementById('resDisplay');
+        const mouseDisplay = document.getElementById('mouseDisplay');
+
+        if (!gl) {
+            alert('WebGL not supported');
+            throw new Error('WebGL not supported');
+        }
+
+        let currentProgram = null;
+        let positionBuffer = null;
+        let animationId = null;
+        let isPaused = false;
+        let startTime = Date.now();
+        let pauseTime = 0;
+        let mouseX = 0, mouseY = 0;
+        let lastFrameTime = Date.now();
+        let frameCount = 0;
+        let fps = 60;
+
+        // Vertex shader (always the same)
+        const vertexShaderSource = `
+            attribute vec2 a_position;
+            void main() {
+                gl_Position = vec4(a_position, 0.0, 1.0);
+            }
+        `;
+
+        // Default shader code
+        const defaultShader = `// Fragment Shader - Edit and press "Run" or Ctrl+Enter
+// Available uniforms:
+//   u_time (float) - time in seconds
+//   u_resolution (vec2) - canvas resolution
+//   u_mouse (vec2) - mouse position
+
+precision highp float;
+
+uniform vec2 u_resolution;
+uniform float u_time;
+uniform vec2 u_mouse;
+
+void main() {
+    vec2 uv = gl_FragCoord.xy / u_resolution.xy;
+    vec3 col = 0.5 + 0.5 * cos(u_time + uv.xyx + vec3(0, 2, 4));
+    gl_FragColor = vec4(col, 1.0);
+}`;
+
+        // Example shaders
+        const examples = {
+            wave: `// Cellular Wave Pattern (from your upload!)
+precision highp float;
+uniform vec2 u_resolution;
+uniform float u_time;
+
+mat2 rotate2D(float angle) {
+    float c = cos(angle);
+    float s = sin(angle);
+    return mat2(c, -s, s, c);
+}
+
+vec4 tanh_approx(vec4 x) {
+    vec4 x2 = x * x;
+    vec4 x3 = x2 * x;
+    vec4 x5 = x3 * x2;
+    return x - x3 / 3.0 + x5 * 2.0 / 15.0;
+}
+
+void main() {
+    vec2 FC = gl_FragCoord.xy;
+    vec2 r = u_resolution;
+    float t = u_time;
+    vec4 o = vec4(0.0);
+    float d = 0.0;
+    
+    for(float i = 1.0; i < 100.0; i++) {
+        vec3 p = vec3((FC.xy * 2.0 - r.xy) / r.y * d, d - 9.0);
+        p.yz *= rotate2D(-t / 3.0);
+        
+        vec3 cellA = sin(ceil(p / 0.3));
+        vec3 cellB = cos(ceil(p / 0.6)).yzx;
+        float cellDot = dot(cellA, cellB);
+        float cellCos = cos(cellDot);
+        float fractLen = length(fract(p));
+        float stepVal = smoothstep(cellCos, fractLen - 4.0, 0.3);
+        float s = 0.003 + 0.07 * abs(1.0 - stepVal - i / 100.0);
+        d += s;
+        
+        vec4 colorContrib = max(
+            sin(vec4(1.0, 2.0, 3.0, 1.0) + i * 0.7) / s,
+            vec4(-length(p * p))
+        );
+        o += colorContrib;
+    }
+    
+    o = tanh_approx(o * o / 1e6);
+    gl_FragColor = vec4(o.rgb, 1.0);
+}`,
+            plasma: `// Animated Plasma
+precision highp float;
+uniform vec2 u_resolution;
+uniform float u_time;
+
+void main() {
+    vec2 uv = gl_FragCoord.xy / u_resolution.xy;
+    vec2 p = uv * 8.0 - 4.0;
+    
+    float v = sin(p.x + u_time);
+    v += sin(p.y + u_time);
+    v += sin(p.x + p.y + u_time);
+    v += sin(sqrt(p.x * p.x + p.y * p.y + 1.0) + u_time);
+    v /= 4.0;
+    
+    vec3 col = 0.5 + 0.5 * cos(v * 3.14159 + vec3(0, 2, 4));
+    gl_FragColor = vec4(col, 1.0);
+}`,
+            mandelbrot: `// Mandelbrot Set
+precision highp float;
+uniform vec2 u_resolution;
+uniform float u_time;
+uniform vec2 u_mouse;
+
+void main() {
+    vec2 uv = (gl_FragCoord.xy - u_resolution.xy * 0.5) / u_resolution.y;
+    float zoom = 1.0 + sin(u_time * 0.3) * 0.5;
+    vec2 c = uv * 3.0 / zoom - vec2(0.5, 0.0);
+    
+    vec2 z = vec2(0.0);
+    float iter = 0.0;
+    
+    for(float i = 0.0; i < 100.0; i++) {
+        if(length(z) > 2.0) break;
+        z = vec2(z.x * z.x - z.y * z.y, 2.0 * z.x * z.y) + c;
+        iter++;
+    }
+    
+    float col = iter / 100.0;
+    vec3 color = 0.5 + 0.5 * cos(col * 10.0 + vec3(0, 2, 4));
+    gl_FragColor = vec4(color, 1.0);
+}`,
+            tunnel: `// 3D Tunnel
+precision highp float;
+uniform vec2 u_resolution;
+uniform float u_time;
+
+void main() {
+    vec2 uv = (gl_FragCoord.xy - u_resolution.xy * 0.5) / u_resolution.y;
+    
+    float a = atan(uv.y, uv.x);
+    float r = length(uv);
+    
+    vec2 tuv = vec2(a / 3.14159, 1.0 / r + u_time * 0.5);
+    
+    vec3 col = 0.5 + 0.5 * cos(tuv.x * 10.0 + tuv.y * 5.0 + vec3(0, 2, 4));
+    col *= 1.0 - exp(-r * 2.0);
+    
+    gl_FragColor = vec4(col, 1.0);
+}`
+        };
+
+        shaderCodeEl.value = defaultShader;
+
+        function resizeCanvas() {
+            const wrapper = canvas.parentElement;
+            const rect = wrapper.getBoundingClientRect();
+            canvas.width = rect.width * window.devicePixelRatio;
+            canvas.height = rect.height * window.devicePixelRatio;
+            gl.viewport(0, 0, canvas.width, canvas.height);
+            resDisplay.textContent = `${canvas.width}x${canvas.height}`;
+        }
+        
+        resizeCanvas();
+        window.addEventListener('resize', resizeCanvas);
+
+        function createShader(type, source) {
+            const shader = gl.createShader(type);
+            gl.shaderSource(shader, source);
+            gl.compileShader(shader);
+            
+            if (!gl.getShaderParameter(shader, gl.COMPILE_STATUS)) {
+                const error = gl.getShaderInfoLog(shader);
+                gl.deleteShader(shader);
+                throw new Error(error);
+            }
+            return shader;
+        }
+
+        function createProgram(vertexShader, fragmentShader) {
+            const program = gl.createProgram();
+            gl.attachShader(program, vertexShader);
+            gl.attachShader(program, fragmentShader);
+            gl.linkProgram(program);
+            
+            if (!gl.getProgramParameter(program, gl.LINK_STATUS)) {
+                const error = gl.getProgramInfoLog(program);
+                gl.deleteProgram(program);
+                throw new Error(error);
+            }
+            return program;
+        }
+
+        function showError(message) {
+            errorTextEl.textContent = message;
+            errorDisplayEl.classList.add('show');
+        }
+
+        function hideError() {
+            errorDisplayEl.classList.remove('show');
+        }
+
+        function compileShader() {
+            hideError();
+            
+            try {
+                // Clean up old program
+                if (currentProgram) {
+                    gl.deleteProgram(currentProgram);
+                    currentProgram = null;
+                }
+
+                // Compile shaders
+                const vertexShader = createShader(gl.VERTEX_SHADER, vertexShaderSource);
+                const fragmentShader = createShader(gl.FRAGMENT_SHADER, shaderCodeEl.value);
+                currentProgram = createProgram(vertexShader, fragmentShader);
+
+                // Clean up shaders
+                gl.deleteShader(vertexShader);
+                gl.deleteShader(fragmentShader);
+
+                // Setup geometry (create buffer if needed)
+                if (!positionBuffer) {
+                    positionBuffer = gl.createBuffer();
+                }
+                
+                const positions = new Float32Array([
+                    -1, -1,  1, -1,  -1, 1,
+                    -1, 1,   1, -1,   1, 1,
+                ]);
+
+                gl.bindBuffer(gl.ARRAY_BUFFER, positionBuffer);
+                gl.bufferData(gl.ARRAY_BUFFER, positions, gl.STATIC_DRAW);
+
+                // Use the new program and set up attributes
+                gl.useProgram(currentProgram);
+                
+                const positionLoc = gl.getAttribLocation(currentProgram, 'a_position');
+                gl.enableVertexAttribArray(positionLoc);
+                gl.bindBuffer(gl.ARRAY_BUFFER, positionBuffer);
+                gl.vertexAttribPointer(positionLoc, 2, gl.FLOAT, false, 0, 0);
+
+                return true;
+            } catch (error) {
+                showError(error.message);
+                currentProgram = null;
+                return false;
+            }
+        }
+
+        function render() {
+            if (isPaused) {
+                animationId = requestAnimationFrame(render);
+                return;
+            }
+
+            const currentTime = Date.now();
+            const elapsed = (currentTime - startTime) / 1000.0;
+
+            // Calculate FPS
+            frameCount++;
+            if (currentTime - lastFrameTime >= 1000) {
+                fps = Math.round(frameCount * 1000 / (currentTime - lastFrameTime));
+                fpsDisplay.textContent = fps;
+                frameCount = 0;
+                lastFrameTime = currentTime;
+            }
+
+            if (currentProgram) {
+                // Clear canvas
+                gl.clear(gl.COLOR_BUFFER_BIT);
+                
+                // Use the current program
+                gl.useProgram(currentProgram);
+
+                // Set uniforms
+                const timeLoc = gl.getUniformLocation(currentProgram, 'u_time');
+                const resolutionLoc = gl.getUniformLocation(currentProgram, 'u_resolution');
+                const mouseLoc = gl.getUniformLocation(currentProgram, 'u_mouse');
+
+                if (timeLoc) gl.uniform1f(timeLoc, elapsed);
+                if (resolutionLoc) gl.uniform2f(resolutionLoc, canvas.width, canvas.height);
+                if (mouseLoc) gl.uniform2f(mouseLoc, mouseX, mouseY);
+
+                // Bind buffer and set up attributes
+                const positionLoc = gl.getAttribLocation(currentProgram, 'a_position');
+                gl.bindBuffer(gl.ARRAY_BUFFER, positionBuffer);
+                gl.enableVertexAttribArray(positionLoc);
+                gl.vertexAttribPointer(positionLoc, 2, gl.FLOAT, false, 0, 0);
+
+                // Draw
+                gl.drawArrays(gl.TRIANGLES, 0, 6);
+
+                timeDisplay.textContent = elapsed.toFixed(2) + 's';
+            }
+
+            animationId = requestAnimationFrame(render);
+        }
+
+        // Event listeners
+        runBtn.addEventListener('click', () => {
+            if (compileShader()) {
+                if (!animationId) {
+                    render();
+                }
+            }
+        });
+
+        clearBtn.addEventListener('click', () => {
+            shaderCodeEl.value = defaultShader;
+            compileShader();
+        });
+
+        pauseBtn.addEventListener('click', () => {
+            isPaused = !isPaused;
+            pauseBtn.textContent = isPaused ? 'Resume' : 'Pause';
+            
+            if (isPaused) {
+                pauseTime = Date.now();
+            } else {
+                startTime += (Date.now() - pauseTime);
+            }
+        });
+
+        resetBtn.addEventListener('click', () => {
+            startTime = Date.now();
+            frameCount = 0;
+        });
+
+        exampleSelect.addEventListener('change', (e) => {
+            if (e.target.value && examples[e.target.value]) {
+                shaderCodeEl.value = examples[e.target.value];
+                compileShader();
+                e.target.value = '';
+            }
+        });
+
+        // Keyboard shortcuts
+        shaderCodeEl.addEventListener('keydown', (e) => {
+            if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)) {
+                e.preventDefault();
+                runBtn.click();
+            }
+            
+            // Tab support
+            if (e.key === 'Tab') {
+                e.preventDefault();
+                const start = shaderCodeEl.selectionStart;
+                const end = shaderCodeEl.selectionEnd;
+                shaderCodeEl.value = shaderCodeEl.value.substring(0, start) + '    ' + shaderCodeEl.value.substring(end);
+                shaderCodeEl.selectionStart = shaderCodeEl.selectionEnd = start + 4;
+            }
+        });
+
+        // Mouse tracking
+        canvas.addEventListener('mousemove', (e) => {
+            const rect = canvas.getBoundingClientRect();
+            mouseX = (e.clientX - rect.left) * (canvas.width / rect.width);
+            mouseY = canvas.height - (e.clientY - rect.top) * (canvas.height / rect.height);
+            mouseDisplay.textContent = `${Math.round(mouseX)}, ${Math.round(mouseY)}`;
+        });
+
+        // Initial compile and render
+        gl.clearColor(0.0, 0.0, 0.0, 1.0);
+        compileShader();
+        render();
+    </script>
+</body>
+</html>
