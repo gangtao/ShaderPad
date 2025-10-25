@@ -1,4 +1,4 @@
-// Fractal Noise Pattern - Debug Version
+// Fractal Noise Pattern
 precision highp float;
 
 uniform vec2 u_resolution;
@@ -27,7 +27,6 @@ void main() {
     q.y = -1.0;
     
     for(float i = 1.0; i < 100.0; i += 1.0) {
-        // Pink color adjustment
         float hue = mod(R - s / i, 6.0);
         o.rgb += 0.03 - hsv(hue * 0.5 + 5.0, 0.85, min(e * s * e, R) / 3.0);
         

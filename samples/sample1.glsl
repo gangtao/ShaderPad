@@ -1,5 +1,4 @@
-// Cellular Wave Pattern - Variant 2
-// Translated from compact code
+// Cellular Wave Pattern
 precision highp float;
 
 uniform vec2 u_resolution;
